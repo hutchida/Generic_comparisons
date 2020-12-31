@@ -28,6 +28,7 @@ import pdf_to_docx
 import docx_to_html
 import xml_to_html
 import metrics
+import mailout as email
 
 pd.set_option('display.max_colwidth', -1) #stop the dataframe from truncating cell contents.
 
@@ -145,13 +146,17 @@ def convert(xml_filepath):
 retained_dir = '\\\\lngoxfclup24va\\glpfab1\\build\\EU_Archive\\'
 eu_dir = '\\\\lngoxfclup24va\\glpfab4\\Build\\EUCrawler\\_ComparisonContent\\'
 log_dir = eu_dir + 'logs\\'
+report_template = r'\\lngoxfclup24va\glpfab4\Build\EUCrawler\_ComparisonContent\templates\report-template.html'
 three_way_template = r'\\lngoxfclup24va\glpfab4\Build\EUCrawler\_ComparisonContent\templates\side-by-side.html'
 redline_only_template = r'\\lngoxfclup24va\glpfab4\Build\EUCrawler\_ComparisonContent\templates\redline-only.html'
 NSMAP = {'core': 'http://www.lexisnexis.com/namespace/sslrp/core', 'fn': 'http://www.lexisnexis.com/namespace/sslrp/fn', 'header': 'http://www.lexisnexis.com/namespace/uk/header', 'kh': 'http://www.lexisnexis.com/namespace/uk/kh', 'lnb': 'http://www.lexisnexis.com/namespace/uk/lnb', 'lnci': 'http://www.lexisnexis.com/namespace/common/lnci', 'tr': 'http://www.lexisnexis.com/namespace/sslrp/tr', 'atict': 'http://www.arbortext.com/namespace/atict', 'leg':'http://www.lexis-nexis.com/glp/leg' , 'docinfo':'http://www.lexis-nexis.com/glp/docinfo' }
 cleaner = Cleaner(remove_unknown_tags=False, allow_tags=['table', 'tgroup', 'tbody', 'colspec', 'tr', 'td', 'th', 'p', 'h5', 'h4', 'sup', 'blockquote'], page_structure=True)
+receiver_email_list = 'daniel.hutchings.1@lexisnexis.co.uk' #'; emailaddress; '
+sender_email = 'LNGUKPSLDigitalEditors@ReedElsevier.com'
 
 logdatetime =  str(time.strftime("%Y%m%d-%H%M%S"))
 logdate = str(time.strftime("%Y-%m-%d"))
+report_date = str(time.strftime("#%d %B %Y")) #hash before the %d turns off the leading zero for single digit days
 archive_list = []
 
 log_filepath = log_dir + 'eu-comparison-' + logdatetime + '.log'
@@ -245,7 +250,46 @@ for directory in directories:
 print(status_report)
 df_report = pd.DataFrame(report_list)
 df_report.to_csv(log_dir + 'eu-comparison-' + logdatetime + '.csv', index=False)
+
+#clean up dataframe before embedding in email
+
+#filter by redline not na
+df_report = df_report[df_report.redline_filepath != 'na']
+
+#sort by dpsi
+df_report = df_report.sort_values('DPSI', ascending = False)
+
+#add sourcename
+df_report['Source'] = df_report['DPSI']
+
+#change remove file extension from filename
+
+
+#convert redline and compared filepaths to clickable
+df_report['Single redline'] = '<a href="file:///' + df_report['redline_filepath'] + '" target="_blank">View</a>'
+df_report['Side by side'] = '<a href="file:///' + df_report['three_way_filepath'] + '" target="_blank">View</a>'
+
+#remove latest_doc, previous_doc, retained_dir, EU_dir, 
+del df_report['latest_doc'], df_report['previous_doc'], df_report['retained_dir'], df_report['EU_dir'], df_report['status'], df_report['DPSI'], df_report['redline_filepath'], df_report['three_way_filepath']
+
+pd.set_option('display.max_colwidth', -1) #stop the dataframe from truncating cell contents. This needs to be set if you want html links to work in cell contents
     
+with open(report_template,'r') as template:
+    htmltemplate = template.read()
+
+change_table = df_report.to_html(na_rep = " ",index = False,  classes="table table-bordered text-left table-striped table-hover table-sm")
+
+report_filepath = log_dir + 'eu-comparison-report-' + logdate + '.html'
+with open(report_filepath,'w', encoding='utf-8') as f:            
+    html = htmltemplate.replace('__DATE__', report_date).replace('__STATUS_REPORT__', status_report).replace('__CHANGELEN__', str(len(df_report))).replace('__DFCHANGES__', change_table)
+    html = html.replace('&lt;', '<').replace('&gt;', '>').replace('\\', '/').replace('\u2011','-').replace('\u2015','&#8213;').replace('ī','').replace('─','&mdash;')
+    f.write(html)
+    f.close()
+    pass
+
+log("Exported html report to..." + report_filepath)
+
+email.send('EU comparison report - ' + logdate, html, receiver_email_list, sender_email)
 # if state == 'live':
 #     metrics.add(log_dir+r'\generic-comparison-metrics.csv', 1, 'Generic comparison', filename)
 
