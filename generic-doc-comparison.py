@@ -235,10 +235,10 @@ error_filepath_html = dated_directory + '\\ERROR-' + filename + '-'  + str(time.
 cleaner = Cleaner(remove_unknown_tags=False, allow_tags=['table', 'tgroup', 'tbody', 'colspec', 'tr', 'td', 'th', 'p', 'h5', 'h4', 'sup', 'blockquote'], page_structure=True)
 
 log('Cleaning latest html...' + latest_filepath_html)
-with open(latest_filepath_html,'r', encoding='latin1') as file:
+with open(latest_filepath_html,'r', encoding='latin-1') as file:
     latest_html = html.fromstring(cleaner.clean_html(file.read()))
 log('Cleaning previous html...' + previous_filepath_html)
-with open(previous_filepath_html,'r', encoding='latin1') as file:
+with open(previous_filepath_html,'r', encoding='latin-1') as file:
     previous_html = html.fromstring(cleaner.clean_html(file.read()))
 # parser = etree.XMLParser(recover=True) #create parser that tries to recover doc after encountering html characters
 # previous_tree = etree.parse(previous, parser=parser)
@@ -309,15 +309,15 @@ log('Converting to single redline html...')
 convert_to_html(redline_only_template, filename, previous_html, latest_html, diffed_version, redline_filepath_html) 
 log('Exported to: ' + redline_filepath_html)
 
-# log('Cleaning up the folders...')
-# archive_files_in(prev_dir, prev_dir + 'archive//')
-# log('Previous directory now empty and files archived...')
-# archive_files_in(latest_dir, latest_dir + 'archive//')
-# log('Latest directory now empty and files archived...')
+log('Cleaning up the folders...')
+archive_files_in(prev_dir, prev_dir + 'archive//')
+log('Previous directory now empty and files archived...')
+archive_files_in(latest_dir, latest_dir + 'archive//')
+log('Latest directory now empty and files archived...')
 # shutil.copy(compared_filepath_xml, archive_dir + compared_filepath_xml.split('\\')[-1])
 # os.remove(compared_filepath_xml)
 
-# if state == 'live':
-#     metrics.add(log_dir+r'\generic-comparison-metrics.csv', 1, 'Generic comparison', filename)
+if state == 'live':
+    metrics.add(log_dir+r'\generic-comparison-metrics.csv', 1, 'Generic comparison', filename)
 
 log('Finished!')
