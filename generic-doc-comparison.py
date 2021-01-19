@@ -46,45 +46,6 @@ def log(message):
     l.write(message + '\n')
     l.close()
     print(message)
-
-def convert_to_single_html(page_title, doc_title, FilepathXML, FilepathHTML):
-    html = etree.Element('html')
-    head = etree.SubElement(html, 'head')
-    meta = etree.SubElement(head, 'meta')
-    meta.set('http-equiv', 'Content-Type')
-    meta.set('content', 'text/html; charset=utf-8')
-    link = etree.SubElement(head, 'link') #local css
-    link.set('rel', 'stylesheet')
-    link.set('type', 'text/css')
-    link.set('href', 'file:///' + main_dir + 'css/style.css')
-    link = etree.SubElement(head, 'link') #bootstrap
-    link.set('rel', 'stylesheet')
-    link.set('href', 'https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css')
-    link.set('itegrity', 'sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm')
-    link.set('crossorigin', 'anonymous')
-    style = etree.SubElement(head, 'style') #doc css
-    style.text = 'h1{ font-size: 2rem} .insertion, ins {background-color: #66ff99;} .deletion, del {background-color: #ff6666;}'
-
-    title = etree.SubElement(head, 'title')
-    title.text = 'Redline comparison - ' + page_title + ' - ' + doc_title
-    body = etree.SubElement(html, 'body')
-    divmain = etree.SubElement(body, 'div')
-    divmain.set('class', 'container')
-    h1 = etree.SubElement(divmain, 'h1')
-    h1.text = doc_title #+ ':'
-    hr = etree.SubElement(divmain, 'hr')
-
-    divcenter = etree.SubElement(divmain, 'div')
-    #divcenter.set('contenteditable', 'true')
-    divcenter.set('class', 'container')
-    divcenter.set('style', 'width: 100%; height: 0%;')   
-     
-    HTMLTree = etree.parse(FilepathXML)
-    HTMLRoot = HTMLTree.getroot()
-    divcenter.append(HTMLRoot.find('.//div'))
-
-    tree = etree.ElementTree(html)
-    tree.write(FilepathHTML,encoding='utf-8')
     
 def convert_to_html(template_filepath, title, previous_html, latest_html, compared_html, output_filepath):
     with open(template_filepath,'r') as template:
@@ -95,51 +56,11 @@ def convert_to_html(template_filepath, title, previous_html, latest_html, compar
         f.close()
         pass
 
-def levenshtein_distance(str1, str2, ):
-    counter = {"+": 0, "-": 0}
-    distance = 0
-    for edit_code, *_ in ndiff(str1, str2):
-        if edit_code == " ":
-            distance += max(counter.values())
-            counter = {"+": 0, "-": 0}
-        else: 
-            counter[edit_code] += 1
-    distance += max(counter.values())
-    return distance
-
-def create_html_report(Date, changeLen, df_change, additionsLen, df_additions, report_dir, report_filepath):
-    log('Creating report html...')
-    pd.set_option('display.max_colwidth', -1) #stop the dataframe from truncating cell contents. This needs to be set if you want html links to work in cell contents
-    
-    with open(report_dir + 'ReportTemplate.html','r') as template:
-        htmltemplate = template.read()
-
-    additionsTable = df_additions.to_html(na_rep = " ",index = False,  classes="table table-bordered text-left table-striped table-hover table-sm")
-    changeTable = df_change.to_html(na_rep = " ",index = False,  classes="table table-bordered text-left table-striped table-hover table-sm")
-
-    with open(report_filepath,'w', encoding='utf-8') as f:            
-        html = htmltemplate.replace('__DATE__', Date).replace('__CHANGELEN__', changeLen).replace('__DFCHANGES__', changeTable)
-        if len(df_additions) > 0: html = html.replace('__ADDITIONSLEN__', additionsLen).replace('__DFADDITIONS__', additionsTable)
-        else: html = html.replace('__ADDITIONSLEN__', additionsLen).replace('__DFADDITIONS__', '')
-        html = html.replace('&lt;', '<').replace('&gt;', '>').replace('\\', '/').replace('\u2011','-').replace('\u2015','&#8213;').replace('ī','').replace('─','&mdash;')
-        f.write(html)
-        f.close()
-        pass
-
-    log("Exported html report to..." + report_filepath)
 
 def strip_dodgy_characters(tree):
     for elem in tree.iterfind(".//u"): toReplaceText = elem.text
     try: elem.text = toReplaceText.replace('&lt;', '').replace('&gt;','').replace('<', '').replace('>','')
     except: pass
-
-def strip_navigation(data):
-    try:
-        for navElement in data.findall('.//nav'): 
-            navElement.getparent().remove(navElement)
-        print('Nav elements removed before comparison...', data)
-    except: 
-        print('No Nav elements to remove...', data)
 
 
 def archive_files_in(directory, archive_dir):
